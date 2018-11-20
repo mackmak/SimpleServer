@@ -161,7 +161,8 @@ namespace ServerLibrary
             HttpListenerContext context = await listener.GetContextAsync();
             Session session = sessionManager.GetSession(context.Request.RemoteEndPoint);
 
-            OnRequest.IfNotNull
+            //this statement checks for a null object and invokes the action
+            OnRequest?.Invoke(session, context);
 
             // Release the semaphore so that another listener can be immediately started up.
             semaphore.Release();
