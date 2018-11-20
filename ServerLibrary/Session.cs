@@ -17,16 +17,16 @@ namespace ServerLibrary
         private Dictionary<string, object> AdditionalInfo { get; set; }
 
 
-        /*public object this[string sessionObjectsIndex]
+        public object this[string ObjectsIndex]
         {
             get
             {
                 object val = null;
-                AdditionalInfo.TryGetValue(sessionObjectsIndex, out val);
+                AdditionalInfo.TryGetValue(ObjectsIndex, out val);
 
                 return val;
             }
-            set { AdditionalInfo[sessionObjectsIndex] = value; }
+            set { AdditionalInfo[ObjectsIndex] = value; }
         }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace ServerLibrary
             }
 
             return result;
-        }*/
+        }
 
 
         public Session()

@@ -29,18 +29,15 @@ namespace ServerLibrary
         /// </summary>
         public Session GetSession(IPEndPoint remoteEndPoint)
         {
-            if (sessionMap.TryGetValue(remoteEndPoint.Address))
+            Session session = null;
+            if (!sessionMap.TryGetValue(remoteEndPoint.Address, out session))
             {
-
+                session = new Session();
+                session[server.ValidationTokenName] = Guid.NewGuid().ToString();
+                sessionMap[remoteEndPoint.Address] = session;
             }
-                /*if (!sessionMap.TryGetValue(remoteEndPoint.Address, out session))
-                {
-                    session = new Session();
-                    session[server.ValidationTokenName] = Guid.NewGuid().ToString();
-                    sessionMap[remoteEndPoint.Address] = session;
-                }*/
 
-                return session;
+            return session;
         }
 
     }

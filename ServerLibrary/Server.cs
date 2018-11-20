@@ -27,6 +27,7 @@ namespace ServerLibrary
         }
 
         public Func<ServerError, string> OnError { get; set; }
+        public Action<Session, HttpListenerContext> OnRequest { get; set; }
         public int MaxSimultaneousConnections { get; }
         public static int ExpirationTimeInSeconds { get; set; }
         public string ValidationTokenName { get; set; }
@@ -158,7 +159,9 @@ namespace ServerLibrary
         {
             // Wait for a connection. Return to caller while we wait.
             HttpListenerContext context = await listener.GetContextAsync();
-            //Session session = sessionManager.GetSession(context.Request.RemoteEndPoint);
+            Session session = sessionManager.GetSession(context.Request.RemoteEndPoint);
+
+            OnRequest.IfNotNull
 
             // Release the semaphore so that another listener can be immediately started up.
             semaphore.Release();
@@ -180,8 +183,6 @@ namespace ServerLibrary
 
             GetKeyValues(data, keyValueParams);
             Log(keyValueParams);
-
-            Session session = sessionManager.GetSession(context.Request.RemoteEndPoint);
 
             // We have a connection, do something...
             var response = router.Route(session, httpVerb, urlPath, keyValueParams);
