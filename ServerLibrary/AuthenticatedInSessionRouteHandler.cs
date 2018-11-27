@@ -12,20 +12,20 @@ namespace ServerLibrary
     public class AuthenticatedInSessionRouteHandler : AuthenticatedPageRouteHandler
     {
 
-        public AuthenticatedInSessionRouteHandler(Func<Session, Dictionary<string, string>, string> handler):
+        public AuthenticatedInSessionRouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler):
             base(handler)
         {
 
         }
 
-        public override string Handle(Session session, Dictionary<string, string> parameters)
+        public override ResponsePacket Handle(Session session, Dictionary<string, object> parameters)
         {
-            string response;
+            ResponsePacket response;
 
             if (session.IsExpired(Server.ExpirationTimeInSeconds))
             {
-                session.isAuthenticated = false;
-                response = new Server().OnError(Server.ServerError.ExpiredSession);
+                session.Expire();
+                response = server.Redirect(server.OnError(Server.ServerError.ExpiredSession));
             }
             else
             {

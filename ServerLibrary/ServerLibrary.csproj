@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnonymousRouteHandler.cs" />
     <Compile Include="AuthenticatedInSessionRouteHandler.cs" />
     <Compile Include="AuthenticatedPageRouteHandler.cs" />
     <Compile Include="Converter.cs" />

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 
 namespace ConsoleWebServer
 {
@@ -16,7 +17,8 @@ namespace ConsoleWebServer
 
             server.AddRoute(new Route()
             {
-                HttpVerb = Router.POST, Path = "/demo/redirect",
+                HttpVerb = Router.POST,
+                Path = "/demo/redirect",
                 Handler = new NonAuthenticatedPageRouteHandler(Redirect)
             });
 
@@ -34,6 +36,14 @@ namespace ConsoleWebServer
                 HttpVerb = Router.POST,
                 Path = "/demo/redirect",
                 Handler = new AuthenticatedInSessionRouteHandler(Redirect)
+            });
+
+            //Route Handler
+            server.AddRoute(new Route()
+            {
+                HttpVerb = Router.PUT,
+                Path = "/demo/ajax",
+                Handler = new AnonymousRouteHandler(AjaxResponder)
             });
 
             server.Start(webSitePath);
@@ -81,9 +91,22 @@ namespace ConsoleWebServer
             return response;
         }
 
-        public static string Redirect(Session session, Dictionary<string, string> parameters)
+        public static ResponsePacket Redirect(Session session, Dictionary<string, object> parameters)
         {
             return server.Redirect("/demo/clicked");
+        }
+
+        public static ResponsePacket AjaxResponder(Session session, Dictionary<string, object> parameters)
+        {
+            string data = "You said " + parameters["number"];
+
+            ResponsePacket responsePacket = new ResponsePacket()
+            {
+                Data = Encoding.UTF8.GetBytes(data),
+                ContentType = "text"
+            };
+
+            return responsePacket;
         }
     }
 }

@@ -29,7 +29,7 @@ namespace ServerLibrary
         public string HttpVerb { get; set; }
         public string Path { get; set; }
         public RouteHandler Handler { get; set; }
-        //public Func<Session, Dictionary<string, object>, string, string> PostProcess { get; set; }
+
     }
 
     internal class ExtensionInfo
@@ -124,7 +124,8 @@ namespace ServerLibrary
             return response;
         }
 
-        public ResponsePacket Route(Session session, string httpVerb, string urlPath, Dictionary<string, string> handler)
+        public ResponsePacket Route(Session session, string httpVerb, string urlPath, 
+            Dictionary<string, object> handler)
         {
             var extension = urlPath.RightOfRightmostOf('.');
             ExtensionInfo extensionInfo = null;
@@ -136,22 +137,23 @@ namespace ServerLibrary
                 string windowsPath = urlPath.Substring(1).Replace('/', '\\');//replace with windows path separator
                 string fullPath = Path.Combine(SitePath, windowsPath);
                 
-                Route route = routes.SingleOrDefault(selectedRoutes =>
+                Route routeHandler = routes.SingleOrDefault(selectedRoutes =>
                 httpVerb == selectedRoutes.HttpVerb.ToLower() && urlPath == selectedRoutes.Path.ToLower());
 
-                if(route != null)
+                if(routeHandler != null)
                 {
                     //There's a handler for this route
-                    string redirect = route.Handler.Handle(session, handler);
+                    ResponsePacket handlerResponse = routeHandler.Handler.Handle(session, handler);
 
-                    if (string.IsNullOrEmpty(redirect))
+                    if (handlerResponse == null)
                     {
                         //Respond with default content loader
                         response = extensionInfo.Loader(session, fullPath, extension, extensionInfo);
                     }
                     else
                     {
-                        response = new ResponsePacket() { Redirect = redirect };
+                        //Respond with redirect
+                        response = handlerResponse;
                     }
                 }
                 else

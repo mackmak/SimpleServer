@@ -8,13 +8,35 @@ namespace ServerLibrary
 {
     public abstract class RouteHandler
     {
-        protected Func<Session, Dictionary<string, string>, string> handler;
-        public RouteHandler(Func<Session, Dictionary<string, string>, string> handler)
+        protected Server server;
+        protected Func<Session, Dictionary<string, object>, ResponsePacket> handler;
+        
+        protected RouteHandler(Server server, Func<Session, Dictionary<string, object>, ResponsePacket> handler)
+        {
+            this.server = server;
+            this.handler = handler;
+        }
+
+        protected RouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler)
         {
             this.handler = handler;
         }
 
-        public abstract string Handle(Session session, Dictionary<string, string> parameters);
+        public virtual ResponsePacket Handle(Session session, Dictionary<string, object> parameters)
+        {
+            return InvokeHandler(session, parameters);
+        }
+
+        protected ResponsePacket InvokeHandler(Session session, Dictionary<string, object> parameters)
+        {
+            ResponsePacket responsePacket = null;
+            if(handler != null)
+            {
+                responsePacket = handler(session, parameters);
+            }
+
+            return responsePacket;
+        }
     }
     
 }

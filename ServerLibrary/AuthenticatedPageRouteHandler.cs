@@ -6,24 +6,27 @@ using System.Threading.Tasks;
 
 namespace ServerLibrary
 {
+    /// <summary>
+    /// Visible for authenticated user and session is NOT active
+    /// </summary>
     public class AuthenticatedPageRouteHandler : RouteHandler
     {
-        public AuthenticatedPageRouteHandler(Func<Session, Dictionary<string, string>, string> handler) :
+        public AuthenticatedPageRouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler) :
             base(handler)
         {
         }
 
-        public override string Handle(Session session, Dictionary<string, string> parameters)
+        public override ResponsePacket Handle(Session session, Dictionary<string, object> parameters)
         {
-            string response;
+            ResponsePacket response;
 
             if (session.isAuthenticated)
             {
-                response = handler(session, parameters);
+                response = InvokeHandler(session, parameters);
             }
             else
             {
-                response = new Server().OnError(Server.ServerError.NotAuthorized);
+                response = server.Redirect(server.OnError(Server.ServerError.NotAuthorized));
             }
             return response;
         }

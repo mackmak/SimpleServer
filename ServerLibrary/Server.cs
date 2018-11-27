@@ -50,6 +50,8 @@ namespace ServerLibrary
         public Server()
         {
             MaxSimultaneousConnections = 20;
+            ExpirationTimeInSeconds = 60;
+            ValidationTokenName = "__SWSToken__";
 
             semaphore = new Semaphore(MaxSimultaneousConnections, MaxSimultaneousConnections);
             router = new Router();
@@ -60,9 +62,9 @@ namespace ServerLibrary
         {
             Console.WriteLine(request.RemoteEndPoint + " " + request.HttpMethod + " /" + request.Url.AbsoluteUri);
         }
-        public static void Log(Dictionary<string, string> keyValueParams)
+        public static void Log(Dictionary<string, object> keyValueParams)
         {
-            keyValueParams.ForEach(kvp => Console.WriteLine(kvp.Key + " : " + kvp.Value));
+            keyValueParams.ForEach(kvp => Console.WriteLine(kvp.Key + " : " + kvp.Value.ToString()));
         }
 
         /// <summary>
@@ -112,9 +114,9 @@ namespace ServerLibrary
             }
         }
 
-        private static Dictionary<string, string> GetKeyValues(string data, Dictionary<string, string> keyValues = null)
+        private static Dictionary<string, object> GetKeyValues(string data, Dictionary<string, object> keyValues = null)
         {
-            keyValues.IfNull(() => keyValues = new Dictionary<string, string>());
+            keyValues.IfNull(() => keyValues = new Dictionary<string, object>());
             data.If(d => d.Length > 0, (d) => d.Split('&').ForEach(keyValue => keyValues[keyValue.LeftOf('=')] = System.Uri.UnescapeDataString(keyValue.RightOf('='))));
 
             return keyValues;
@@ -172,48 +174,84 @@ namespace ServerLibrary
 
             //Serving content
             HttpListenerRequest request = context.Request;
-            var url = request.RawUrl;
-            var urlPath = url.LeftOf("?"); // Only the path, not any of the parameters
-            var httpVerb = request.HttpMethod;// get, post, delete, etc.
-            var urlParams = url.RightOf("?");// Params on the URL itself follow the URL and are separated by a ?
-
-            var keyValueParams = GetKeyValues(urlParams);
-            //Passing info to the router
-            string data = new StreamReader(context.Request.InputStream, 
-                context.Request.ContentEncoding).ReadToEnd();
-
-            GetKeyValues(data, keyValueParams);
-            Log(keyValueParams);
-
-            // We have a connection, do something...
-            var response = router.Route(session, httpVerb, urlPath, keyValueParams);
-            
-            if (response.Error != ServerError.OK)
-            {
-                response.Redirect = OnError(response.Error);
-            }
+            ResponsePacket responsePacket;
 
             try
             {
-                Respond(request, context.Response, response);
+                var url = request.RawUrl;
+                var urlPath = url.LeftOf("?"); // Only the path, not any of the parameters
+                var httpVerb = request.HttpMethod;// get, post, delete, etc.
+                var urlParams = url.RightOf("?");// Params on the URL itself follow the URL and are separated by a ?
+
+                var keyValueParams = GetKeyValues(urlParams);
+                //Passing info to the router
+                string data = new StreamReader(context.Request.InputStream,
+                    context.Request.ContentEncoding).ReadToEnd();
+
+                keyValueParams = GetKeyValues(data, keyValueParams);
+                Log(keyValueParams);
+
+                if (!TokenCheck(session, httpVerb, keyValueParams))
+                {
+                    Console.WriteLine("CSRF token didn't match. Cutting off connection");
+                    context.Response.OutputStream.Close();
+                }
+                else
+                {
+                    // We have a connection, do something...
+                    responsePacket = router.Route(session, httpVerb, urlPath, keyValueParams);
+
+                    session.UpdateLastConnectionTime();
+
+                    //Error redirection
+                    if (responsePacket.Error != ServerError.OK)
+                    {
+                        responsePacket.Redirect = OnError(responsePacket.Error);
+                    }
+
+                    try
+                    {
+                        Respond(request, context.Response, responsePacket);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+                responsePacket = new ResponsePacket() { Redirect = OnError(ServerError.ServerError) };
             }
 
-            session.UpdateLastConnectionTime();
+            
 
         }
 
-        /// <summary>
-        /// Begin listening to connections on a separate worker thread.
-        /// </summary>
-        private void Start(HttpListener listener)
+        private bool TokenCheck(Session session, string httpVerb, Dictionary<string, object> keyValuePairs)
         {
-            listener.Start();
-            Task.Run(() => RunServer(listener));
+            bool checkResult = true;
+
+            if(httpVerb.ToLower() != "get")
+            {
+                object token;
+
+                if(keyValuePairs.TryGetValue(ValidationTokenName, out token))
+                {
+                    checkResult = session[ValidationTokenName].ToString() == token.ToString();
+                }
+                else
+                {
+                    Console.WriteLine("Token is missing.");
+                }
+            }
+
+            return checkResult;
         }
+
         
         /// <summary>
         /// Starts the web server.
@@ -227,20 +265,33 @@ namespace ServerLibrary
             Start(listener);
         }
 
+        /// <summary>
+        /// Begin listening to connections on a separate worker thread.
+        /// </summary>
+        private void Start(HttpListener listener)
+        {
+            listener.Start();
+            Task.Run(() => RunServer(listener));
+        }
+
         public void AddRoute(Route route)
         {
             router.AddRoute(route);
         }
 
-        public string Redirect(string url, string parameter = null)
+        public ResponsePacket Redirect(string url, string parameter = null)
         {
-            string response = "";
-            if(parameter != null)
+            ResponsePacket responsePacket = new ResponsePacket()
             {
-                 response = url + "?" + parameter;
+                Redirect = url
+            };
+
+            if (parameter != null)
+            {
+                 responsePacket.Redirect += "?" + parameter;
             }
 
-            return response;
+            return responsePacket;
         }
     }
 }

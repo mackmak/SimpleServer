@@ -8,11 +8,11 @@ namespace ServerLibrary
 {
     public class NonAuthenticatedPageRouteHandler : RouteHandler
     {
-        public NonAuthenticatedPageRouteHandler(Func<Session, Dictionary<string, string>, string> handler) :
+        public NonAuthenticatedPageRouteHandler(Func<Session, Dictionary<string, object>, ResponsePacket> handler) :
             base(handler)
         {
         }
-        public override string Handle(Session session, Dictionary<string, string> parameters)
+        public override ResponsePacket Handle(Session session, Dictionary<string, object> parameters)
         {
             return handler(session, parameters);
         }
